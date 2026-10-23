@@ -73,6 +73,52 @@ test.describe('Inventory: functional', { tag: '@functional' }, () => {
   });
 });
 
+test.describe('Product details', () => {
+  test('UI-35 every product details view matches its catalog entry', { tag: '@functional' }, async ({ loggedInInventoryPage: inventory, productDetailsPage }) => {
+    // Arrange
+    const catalog = await Promise.all((await inventory.productNames()).map((name) => inventory.getProduct(name)));
+
+    for (const product of catalog) {
+      // Act
+      await inventory.openDetails(product.name);
+
+      // Assert
+      await expect(productDetailsPage.backButton).toBeVisible();
+      await expect(productDetailsPage.name).toHaveText(product.name);
+      await expect(productDetailsPage.price).toHaveText(product.priceText);
+      await productDetailsPage.back();
+    }
+  });
+
+  for (const id of ['99', '-1', 'abc']) {
+    test(`UI-36 a non-existent product (id=${id}) cannot be added to the cart`, { tag: '@negative' }, async ({ loggedInInventoryPage, productDetailsPage }) => {
+      // Arrange
+      await expect(loggedInInventoryPage.title).toHaveText('Products');
+
+      // Act
+      await productDetailsPage.gotoId(id);
+
+      // Assert
+      await expect(productDetailsPage.backButton).toBeVisible();
+      await expect(productDetailsPage.addButton).toBeHidden();
+    });
+  }
+});
+
+test('UI-37 Reset App State empties the cart and restores every Add to cart button', { tag: '@functional' }, async ({ loggedInInventoryPage: inventory }) => {
+  // Arrange
+  const product = 'Sauce Labs Backpack';
+  await inventory.addToCart(product);
+  await expect(inventory.cartBadge).toHaveText('1');
+
+  // Act
+  await inventory.resetAppState();
+
+  // Assert
+  await expect(inventory.cartBadge).toBeHidden();
+  await expect(inventory.addButton(product)).toBeVisible();
+});
+
 test.describe('Inventory: boundaries', { tag: '@boundary' }, () => {
   test('UI-15 the cart badge counts every product (max) and disappears at zero (min)', async ({ loggedInInventoryPage: inventory }) => {
     // Arrange

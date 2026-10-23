@@ -69,6 +69,32 @@ test.describe('Login: negative', { tag: '@negative' }, () => {
     });
   }
 
+  const injectionPayloads = [
+    { name: 'SQL tautology', username: "' OR '1'='1", password: "' OR '1'='1" },
+    { name: 'SQL comment', username: "standard_user'--", password: 'anything' },
+    { name: 'script tag', username: '<script>alert(1)</script>', password: '<script>alert(2)</script>' },
+    { name: 'HTML event handler', username: '<img src=x onerror=alert(1)>', password: 'x' },
+  ];
+  for (const { name, ...credentials } of injectionPayloads) {
+    test(`UI-33 injection attempts are rejected and never executed: ${name}`, async ({ page, loginPage }) => {
+      // Arrange
+      const dialogs = [];
+      page.on('dialog', async (dialog) => {
+        dialogs.push(dialog.message());
+        await dialog.dismiss();
+      });
+      await loginPage.goto();
+
+      // Act
+      await loginPage.login(credentials);
+
+      // Assert
+      await expect(loginPage.errorMessage).toHaveText(NO_MATCH);
+      await expect(page).not.toHaveURL(/\/inventory\.html$/);
+      expect(dialogs, 'no script from the inputs ran').toEqual([]);
+    });
+  }
+
   // Every main-flow view renders the login form with an explicit error when there is no session.
   for (const path of ['/inventory.html', '/cart.html', '/checkout-step-one.html', '/checkout-step-two.html', '/checkout-complete.html']) {
     test(`UI-07 ${path} is not reachable without a session`, async ({ loginPage }) => {

@@ -1,4 +1,5 @@
 import { test, expect } from '../../src/fixtures/ui.fixtures.js';
+import { users } from '../../src/ui/data/users.js';
 
 // Chosen by name; prices are read from the catalog at runtime, never hardcoded.
 const PRODUCTS = ['Sauce Labs Backpack', 'Sauce Labs Bolt T-Shirt'];
@@ -73,6 +74,23 @@ test.describe('Cart: functional', { tag: '@functional' }, () => {
     await expect(cartPage.itemName(product)).toHaveText(product);
     await expect(inventory.cartBadge).toHaveText('1');
   });
+});
+
+test('UI-34 a cart is not shared with the next user of the same browser', { tag: '@negative' }, async ({ loggedInInventoryPage: inventory, loginPage, cartPage }) => {
+  // Arrange: standard_user leaves a product in the cart and logs out
+  const [product] = PRODUCTS;
+  await inventory.addToCart(product);
+  await expect(inventory.cartBadge).toHaveText('1');
+  await inventory.logout();
+
+  // Act: another user signs in on the same browser
+  await loginPage.login(users.visual);
+  await expect(inventory.title).toHaveText('Products');
+
+  // Assert
+  await expect(inventory.cartBadge).toBeHidden();
+  await inventory.openCart();
+  await expect(cartPage.items).toHaveCount(0);
 });
 
 test('UI-19 an empty cart shows no items and no badge', { tag: '@boundary' }, async ({ loggedInInventoryPage: inventory, cartPage }) => {

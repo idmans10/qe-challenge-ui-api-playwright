@@ -13,6 +13,7 @@ export class InventoryPage {
     this.activeSortOption = page.getByTestId('active-option');
     this.menuButton = page.getByRole('button', { name: 'Open Menu' });
     this.logoutLink = page.getByTestId('logout-sidebar-link');
+    this.resetAppStateLink = page.getByTestId('reset-sidebar-link');
   }
 
   /** The product card whose name is exactly `name` (never by position). */
@@ -42,6 +43,15 @@ export class InventoryPage {
     return (await this.items.getByTestId('inventory-item-price').allInnerTexts()).map(toCents);
   }
 
+  /** @returns {Promise<string[]>} image sources of the product cards, in display order */
+  async productImageSources() {
+    return this.items.getByRole('img').evaluateAll((images) => images.map((image) => image.getAttribute('src')));
+  }
+
+  async openDetails(name) {
+    await this.item(name).getByTestId('inventory-item-name').click();
+  }
+
   /** @param {'az' | 'za' | 'lohi' | 'hilo'} option value of the sort dropdown */
   async sortBy(option) {
     await this.sortSelect.selectOption(option);
@@ -68,5 +78,10 @@ export class InventoryPage {
   async logout() {
     await this.menuButton.click();
     await this.logoutLink.click();
+  }
+
+  async resetAppState() {
+    await this.menuButton.click();
+    await this.resetAppStateLink.click();
   }
 }
