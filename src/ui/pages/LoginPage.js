@@ -6,6 +6,16 @@ export class LoginPage {
     this.passwordInput = page.getByTestId('password');
     this.loginButton = page.getByTestId('login-button');
     this.errorMessage = page.getByTestId('error');
+    this.errorDismissButton = page.getByTestId('error-button');
+  }
+
+  // Protected views render the login form (with an error) when there is no session.
+  async gotoPath(path) {
+    await this.page.goto(path);
+  }
+
+  async dismissError() {
+    await this.errorDismissButton.click();
   }
 
   async goto() {
