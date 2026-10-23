@@ -5,10 +5,85 @@ import { AuthClient } from '../api/clients/AuthClient.js';
 import { BookingClient } from '../api/clients/BookingClient.js';
 import { BookingFactory } from '../api/factories/BookingFactory.js';
 
-const attachJson = (testInfo, name, value) =>
-  testInfo.attach(name, { body: JSON.stringify(value, null, 2), contentType: 'application/json' });
+// `target` is a TestInfo or a TestStepInfo: both expose attach(). Missing values are shown as explicit nulls.
+const attachJson = (target, name, value) =>
+  target.attach(name, { body: JSON.stringify(value, (_key, v) => (v === undefined ? null : v), 2), contentType: 'application/json' });
 
 const isJson = (response) => (response.headers()['content-type'] ?? '').includes('application/json');
+
+const MAX_EVIDENCE_BODY_CHARS = 10_000;
+// Allow-list: only /booking and /booking/<id> responses may be attached. Anything else, /auth (whose body is
+// the token) included, is refused, so a new endpoint is never recorded without review.
+const ATTACHABLE_PATH = /^\/booking(\/\d+)?$/;
+const REDACTED_BODY = '[redacted: booking identity not verified]';
+
+// Same identity as the ownership checks: the unique factory marker in firstname + lastname, never the id alone.
+// Other fields may differ (that is a functional difference worth showing), the marker may not.
+const carriesOwnIdentity = (booking, ownedPayloads) =>
+  booking !== null && typeof booking === 'object' && ownedPayloads.some((p) => booking.firstname === p.firstname && booking.lastname === p.lastname);
+
+/**
+ * Attaches method, status, path, content type and body of a /booking response as JSON evidence.
+ * Headers are never included (requests carry the auth cookie).
+ * JSON bodies may hold booking data, which on a shared server with reused ids can belong to someone else: they
+ * are attached only when the booking carries the identity of one of `ownedPayloads`. Otherwise (or when the JSON
+ * cannot be parsed) the body is replaced by REDACTED_BODY and only field names that differ are reported.
+ * Bodies longer than MAX_EVIDENCE_BODY_CHARS are cut, flagged `truncated` and described in `bodyNote`.
+ * @returns {Promise<{ status: number, path: string, body: unknown, identityVerified?: boolean, data?: unknown }>}
+ *   the attached evidence plus `data`: the parsed, untruncated JSON, only when the identity is verified (never attached as is)
+ */
+const attachResponse = async (target, name, response, { method, ownedPayloads = [] } = {}) => {
+  const path = new URL(response.url()).pathname;
+  if (!ATTACHABLE_PATH.test(path)) throw new Error(`evidence: refusing to attach a response from ${path} (not in the allow-list)`);
+
+  const text = await response.text();
+  const evidence = { method, status: response.status(), path, contentType: response.headers()['content-type'] ?? null, bodyLength: text.length };
+
+  let parsed;
+  if (isJson(response)) {
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Evidence must not replace the test's own assertion on a malformed body.
+      evidence.jsonParseError = true;
+    }
+    const booking = parsed?.booking ?? parsed; // POST wraps the booking; GET/PUT return it directly
+    evidence.identityVerified = carriesOwnIdentity(booking, ownedPayloads);
+    if (!evidence.identityVerified) {
+      evidence.body = REDACTED_BODY;
+      const latest = ownedPayloads.at(-1);
+      if (latest && booking !== null && typeof booking === 'object') {
+        evidence.differingFields = [...new Set([...Object.keys(latest), ...Object.keys(booking)])].filter((key) => !isDeepStrictEqual(booking[key], latest[key]));
+      }
+      await attachJson(target, name, evidence);
+      return { ...evidence, data: undefined };
+    }
+  }
+
+  evidence.truncated = text.length > MAX_EVIDENCE_BODY_CHARS;
+  if (evidence.truncated) {
+    evidence.body = text.slice(0, MAX_EVIDENCE_BODY_CHARS);
+    evidence.bodyNote = `INCOMPLETE: first ${MAX_EVIDENCE_BODY_CHARS} of ${text.length} characters`;
+  } else {
+    evidence.body = parsed ?? text;
+  }
+  await attachJson(target, name, evidence);
+  return { ...evidence, data: evidence.identityVerified === true ? parsed : undefined };
+};
+
+/**
+ * Comparison evidence for a persisted booking, computed on the parsed response (`data` from attachResponse), never
+ * on the possibly truncated or redacted attachment. Without a verified identity the stored values are not ours to
+ * record, so the comparison is omitted instead of reporting artificial differences.
+ */
+const persistenceComparison = (expected, { identityVerified, status, data }) => {
+  if (identityVerified !== true) {
+    return { identityVerified: false, status, comparison: 'omitted: booking identity not verified' };
+  }
+  const differingFields = [...new Set([...Object.keys(expected), ...Object.keys(data)])].filter((key) => !isDeepStrictEqual(expected[key], data[key]));
+  const differences = Object.fromEntries(differingFields.map((key) => [key, { expected: expected[key], actual: data[key] }]));
+  return { identityVerified: true, status, expected, differingFields, differences };
+};
 
 /**
  * Ownership = the booking currently stored under `id` is exactly one of the payloads this test sent
@@ -152,4 +227,4 @@ export const test = base.extend({
   },
 });
 
-export { expect, attachJson };
+export { expect, attachJson, attachResponse, persistenceComparison };
