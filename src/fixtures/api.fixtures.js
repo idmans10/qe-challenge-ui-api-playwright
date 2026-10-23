@@ -16,6 +16,9 @@ const MAX_EVIDENCE_BODY_CHARS = 10_000;
 // the token) included, is refused, so a new endpoint is never recorded without review.
 const ATTACHABLE_PATH = /^\/booking(\/\d+)?$/;
 const REDACTED_BODY = '[redacted: booking identity not verified]';
+const REDACTED_NON_JSON_BODY = '[redacted: non-JSON body is not a known static response]';
+// Static non-JSON bodies of the Restful-Booker contract ("<status> <exact body>"): they carry no booking data.
+const KNOWN_STATIC_BODIES = new Set(['404 Not Found', '201 Created']);
 
 // Same identity as the ownership checks: the unique factory marker in firstname + lastname, never the id alone.
 // Other fields may differ (that is a functional difference worth showing), the marker may not.
@@ -28,6 +31,8 @@ const carriesOwnIdentity = (booking, ownedPayloads) =>
  * JSON bodies may hold booking data, which on a shared server with reused ids can belong to someone else: they
  * are attached only when the booking carries the identity of one of `ownedPayloads`. Otherwise (or when the JSON
  * cannot be parsed) the body is replaced by REDACTED_BODY and only field names that differ are reported.
+ * Non-JSON bodies are attached only when they are one of KNOWN_STATIC_BODIES; any other is replaced by
+ * REDACTED_NON_JSON_BODY (method, path, status, content type and bodyLength are always kept).
  * Bodies longer than MAX_EVIDENCE_BODY_CHARS are cut, flagged `truncated` and described in `bodyNote`.
  * @returns {Promise<{ status: number, path: string, body: unknown, identityVerified?: boolean, data?: unknown }>}
  *   the attached evidence plus `data`: the parsed, untruncated JSON, only when the identity is verified (never attached as is)
@@ -58,6 +63,12 @@ const attachResponse = async (target, name, response, { method, ownedPayloads = 
       await attachJson(target, name, evidence);
       return { ...evidence, data: undefined };
     }
+  } else if (!KNOWN_STATIC_BODIES.has(`${evidence.status} ${text}`)) {
+    // A non-JSON body has no booking identity to verify (HTML/plain-text errors may echo data), so only the
+    // contract's static texts are attached in clear.
+    evidence.body = REDACTED_NON_JSON_BODY;
+    await attachJson(target, name, evidence);
+    return { ...evidence, data: undefined };
   }
 
   evidence.truncated = text.length > MAX_EVIDENCE_BODY_CHARS;
