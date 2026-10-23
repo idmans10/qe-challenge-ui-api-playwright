@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only token: the workflow only checks out code and uploads artifacts.
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The two jobs have no `needs`: a failure in one never prevents the other from running.
+jobs:
+  api:
+    name: API tests (Restful-Booker)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API tests
+        run: npm run test:api
+
+      - name: Upload API report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-api-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: error
+
+  ui:
+    name: UI tests (SauceDemo, Chromium)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Installs Chromium into node_modules (PLAYWRIGHT_BROWSERS_PATH=0, set by the npm script)
+      # plus the Linux system libraries it needs.
+      - name: Install Chromium and system dependencies
+        run: npm run browsers:install -- --with-deps
+
+      - name: Run UI tests (headless)
+        run: npm run test:ui
+
+      - name: Upload UI report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-ui-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: error

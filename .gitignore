@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Playwright outputs
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Authentication state (storageState files)
+playwright/.auth/
+.auth/
+*.storageState.json
+
+# Environment files (only .env.example is versioned)
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+*.log
+
+# Local tool settings (Claude Code per-user permissions)
+.claude/settings.local.json
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

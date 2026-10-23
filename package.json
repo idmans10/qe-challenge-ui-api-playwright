@@ -1,0 +1,25 @@
+{
+  "name": "qe-challenge-ui-api-playwright",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright Test framework: SauceDemo UI and Restful-Booker API",
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "browsers:install": "PLAYWRIGHT_BROWSERS_PATH=0 playwright install chromium",
+    "test": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
+    "test:api": "playwright test --project=api",
+    "test:ui": "PLAYWRIGHT_BROWSERS_PATH=0 playwright test --project=ui-chromium",
+    "test:list": "playwright test --list",
+    "report": "playwright show-report",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.64.1",
+    "eslint": "10.13.0",
+    "eslint-plugin-playwright": "2.12.1"
+  }
+}
