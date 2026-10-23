@@ -187,7 +187,7 @@ Restful-Booker is shared and public, periodically resets its data, and can reuse
 
 ### Prerequisites
 
-- macOS or Linux with a POSIX shell. The suites have been run on macOS. Linux (Ubuntu 24.04) is the CI target and will be confirmed by the first CI run. The npm scripts set `PLAYWRIGHT_BROWSERS_PATH=0` inline, so Windows would need WSL or Git Bash; Windows has not been tested.
+- macOS or Linux with a POSIX shell. The suites have been run locally on macOS and on Ubuntu 24.04 in GitHub Actions (see [CI Results](#ci-results)). The npm scripts set `PLAYWRIGHT_BROWSERS_PATH=0` inline, so Windows would need WSL or Git Bash; Windows has not been tested.
 - Node.js 22. With [nvm](https://github.com/nvm-sh/nvm), run `nvm use` in the project root; `npm ci` refuses other major versions.
 - Network access to `www.saucedemo.com` and `restful-booker.herokuapp.com`.
 
@@ -263,7 +263,19 @@ Two jobs run in parallel on `ubuntu-24.04`. They have no `needs` dependency, so 
 2. Extract it.
 3. Open the HTML report with `npm run report -- <extracted>/playwright-report`, or load `test-results/junit.xml` into any JUnit viewer.
 
-> The workflow has been validated statically (YAML structure, script names, Node and lockfile consistency) and simulated from a clean copy of the repository. It has not been executed on GitHub Actions yet.
+### CI Results
+
+The first GitHub Actions run of the workflow ([run 39894580038](https://github.com/idmans10/qe-challenge-ui-api-playwright/actions/runs/39894580038)) succeeded. The link requires access to the repository.
+
+| Item | Result |
+|---|---|
+| Branch / commit | `main` / `03387af` |
+| Workflow conclusion | Success (about 46 s wall-clock, jobs in parallel) |
+| `api` job: API tests (Restful-Booker) | 3 passed (API-01, API-02, API-03) |
+| `ui` job: UI tests (SauceDemo, Chromium) | 3 passed (UI-01, UI-02, UI-03) |
+| Artifacts | `playwright-api-report`, `playwright-ui-report` |
+
+This is the result of that single run on that commit. It shows that the workflow works from a clean checkout on the CI runner. It is not a guarantee of future stability, because both suites depend on public services (see [Known Limitations and Risks](#known-limitations-and-risks)). Before that run, the workflow had been validated statically (YAML structure, script names, Node and lockfile consistency) and simulated from a clean copy of the repository.
 
 ## Diagnosing Failures
 
@@ -318,9 +330,8 @@ Failures are reported with prefixes and context so they can be classified quickl
 - **SauceDemo demo data.** The tests rely on the public `standard_user` account, on the names of specific catalog products, and on UI texts such as "Products" or "Thank you for your order!". The site's menu includes a "dynamic catalog" option, so catalog changes would surface as automation failures that name the missing product.
 - **Documented behaviour versus REST conventions.** Restful-Booker answers bad credentials on `/auth` with HTTP 200 and a `reason`, `DELETE` with 201 instead of 204, and a missing booking with a plain-text 404. The tests follow the documented or observed behaviour and do not parse non-JSON error bodies.
 - **Credentials in UI traces.** Traces of failed UI tests include the SauceDemo password typed into the login form. It is a public demo value, but the CI artifacts should be treated accordingly.
-- **Evidence so far.** All execution evidence comes from local runs on macOS (Intel) with Node 22:
-  - repeated runs of both suites, with `--repeat-each` and several workers;
-  - each test run individually and in reverse order;
-  - simulated failure scenarios for the cleanup logic.
+- **Evidence so far.** Execution evidence comes from two sources:
+  - Local runs on macOS (Intel) with Node 22: repeated runs of both suites with `--repeat-each` and several workers, each test run individually and in reverse order, and simulated failure scenarios for the cleanup logic.
+  - One successful GitHub Actions run on Ubuntu 24.04 (see [CI Results](#ci-results)).
 
-  CI has not run yet. Results against live public services can vary over time.
+  This is a limited sample. Results against live public services can vary over time.
