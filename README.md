@@ -136,7 +136,12 @@ See [Booking ownership protection](#booking-ownership-protection) for how teardo
 
 ### Arrange–Act–Assert
 
-Every test is written in three marked blocks (`// Arrange`, `// Act`, `// Assert`) so the intent and the behaviour under test are obvious at a glance. Precondition setup that is not the subject of the test lives in fixtures.
+Every test separates its phases so the intent and the behaviour under test are obvious at a glance:
+
+- **UI tests:** comments mark the phases (`// Arrange`, `// Act`, `// Assert`).
+- **API tests:** each phase is a `test.step()` block (`Arrange: …`, `Act: …`, `Assert: …`) that attaches its JSON evidence, so the phases also appear in the HTML report (see [Reports and artifacts](#reports-and-artifacts)).
+
+Precondition setup that is not the subject of the test lives in fixtures.
 
 ## Test Coverage
 
@@ -271,17 +276,19 @@ Two jobs run in parallel on `ubuntu-24.04`. They have no `needs` dependency, so 
 
 ### CI Results
 
-The first GitHub Actions run of the workflow ([run 39894580038](https://github.com/idmans10/qe-challenge-ui-api-playwright/actions/runs/39894580038)) succeeded. The link requires access to the repository.
+Verified run on `main` after the API observability changes were merged: [run 39906428788](https://github.com/idmans10/qe-challenge-ui-api-playwright/actions/runs/39906428788).
 
 | Item | Result |
 |---|---|
-| Branch / commit | `main` / `03387af` |
-| Workflow conclusion | Success (about 46 s wall-clock, jobs in parallel) |
+| Branch / commit | `main` / `6d7c4b8` |
+| Workflow conclusion | Success |
 | `api` job: API tests (Restful-Booker) | 3 passed (API-01, API-02, API-03) |
 | `ui` job: UI tests (SauceDemo, Chromium) | 3 passed (UI-01, UI-02, UI-03) |
 | Artifacts | `playwright-api-report`, `playwright-ui-report` |
 
-This is the result of that single run on that commit. It shows that the workflow works from a clean checkout on the CI runner. It is not a guarantee of future stability, because both suites depend on public services (see [Known Limitations and Risks](#known-limitations-and-risks)). Before that run, the workflow had been validated statically (YAML structure, script names, Node and lockfile consistency) and simulated from a clean copy of the repository.
+This records that run on that commit only. It is not a guarantee of future stability, because both suites depend on public services (see [Known Limitations and Risks](#known-limitations-and-risks)).
+
+Historical reference: the first run of the workflow ([run 39894580038](https://github.com/idmans10/qe-challenge-ui-api-playwright/actions/runs/39894580038), commit `03387af`) also succeeded with 3 API and 3 UI tests. Before it, the workflow had been validated statically (YAML structure, script names, Node and lockfile consistency) and simulated from a clean copy of the repository.
 
 ## Diagnosing Failures
 
@@ -338,6 +345,6 @@ Failures are reported with prefixes and context so they can be classified quickl
 - **Credentials in UI traces.** Traces of failed UI tests include the SauceDemo password typed into the login form. It is a public demo value, but the CI artifacts should be treated accordingly.
 - **Evidence so far.** Execution evidence comes from two sources:
   - Local runs on macOS (Intel) with Node 22: repeated runs of both suites with `--repeat-each` and several workers, each test run individually and in reverse order, and simulated failure scenarios for the cleanup logic.
-  - One successful GitHub Actions run on Ubuntu 24.04 (see [CI Results](#ci-results)).
+  - Successful GitHub Actions runs on Ubuntu 24.04, including the first run of the workflow (commit `03387af`) and the run on commit `6d7c4b8` after the observability merge (see [CI Results](#ci-results)).
 
   This is a limited sample. Results against live public services can vary over time.
