@@ -238,9 +238,15 @@ Run the test commands through npm so that `PLAYWRIGHT_BROWSERS_PATH=0` is applie
 | HTML report | `playwright-report/` | Every run |
 | Failure screenshots and traces (UI only) | `test-results/` | Only when a UI test fails |
 | JUnit XML | `test-results/junit.xml` | Only in CI (`CI` is set) |
-| Booking payloads and `cleanup-report` | Attached to each API test in the HTML report | Every run |
+| API steps and JSON evidence, `cleanup-report` | Attached to each API test in the HTML report | Every run |
 
-API traces are disabled on purpose: they would capture authentication headers.
+In the HTML report, each API test is split into `test.step()` blocks (Arrange / Act / Assert). Each step carries JSON evidence, attached before the assertions that use it:
+
+- the payloads sent;
+- method, status, path and body of every `/booking` response. A booking body is attached only when it carries the test's own factory marker (`firstname`/`lastname`). Otherwise it is redacted (`identityVerified: false`), so data from a reused ID is never recorded. Non-JSON bodies are kept only for the contract's static texts (`404 Not Found`, `201 Created`); any other non-JSON body is redacted. Bodies over 10,000 characters are cut and flagged `truncated`;
+- for updates, a comparison of the expected and the persisted data.
+
+Fixture teardown attaches the `cleanup-report` under "After Hooks". Evidence never includes tokens, passwords or HTTP headers; `/auth` responses and any path outside `/booking` are refused. API traces are disabled for the same reason: they would capture authentication headers.
 
 ## CI/CD
 
