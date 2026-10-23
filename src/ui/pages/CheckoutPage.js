@@ -6,6 +6,8 @@ export class CheckoutPage {
   constructor(page) {
     this.page = page;
     this.title = page.getByTestId('title');
+    // Information step returns to the cart, overview step to the inventory.
+    this.cancelButton = page.getByTestId('cancel');
 
     // Step one: customer information
     this.firstNameInput = page.getByTestId('firstName');
@@ -24,6 +26,7 @@ export class CheckoutPage {
     // Completion
     this.completeHeader = page.getByTestId('complete-header');
     this.completeText = page.getByTestId('complete-text');
+    this.backHomeButton = page.getByTestId('back-to-products');
   }
 
   async fillCustomer({ firstName, lastName, postalCode }) {
@@ -52,5 +55,13 @@ export class CheckoutPage {
 
   async finish() {
     await this.finishButton.click();
+  }
+
+  async cancel() {
+    await this.cancelButton.click();
+  }
+
+  async backHome() {
+    await this.backHomeButton.click();
   }
 }

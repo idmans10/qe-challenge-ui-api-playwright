@@ -5,6 +5,7 @@ export class CartPage {
     this.title = page.getByTestId('title');
     this.items = page.getByTestId('cart-list').getByTestId('inventory-item');
     this.checkoutButton = page.getByTestId('checkout');
+    this.continueShoppingButton = page.getByTestId('continue-shopping');
   }
 
   item(name) {
@@ -17,6 +18,18 @@ export class CartPage {
 
   itemPrice(name) {
     return this.item(name).getByTestId('inventory-item-price');
+  }
+
+  itemQuantity(name) {
+    return this.item(name).getByTestId('item-quantity');
+  }
+
+  async removeItem(name) {
+    await this.item(name).getByRole('button', { name: 'Remove', exact: true }).click();
+  }
+
+  async continueShopping() {
+    await this.continueShoppingButton.click();
   }
 
   async checkout() {
